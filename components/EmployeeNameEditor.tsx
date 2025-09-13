@@ -6,6 +6,7 @@ interface EmployeeNameEditorProps {
   onEmployeeChange: (index: number, field: keyof Employee, value: string | number) => void;
   onAddEmployee: () => void;
   onRemoveEmployee: (id: string) => void;
+  onReorderEmployees: (employees: Employee[]) => void;
   isLoading: boolean;
   activeEmployeeId: string | null;
   onSetActiveEmployeeId: (id: string | null) => void;
@@ -45,60 +46,113 @@ const EmployeeNameEditor: React.FC<EmployeeNameEditorProps> = ({
     employees, 
     onEmployeeChange, 
     onAddEmployee, 
-    onRemoveEmployee, 
+    onRemoveEmployee,
+    onReorderEmployees, 
     isLoading,
     activeEmployeeId,
     onSetActiveEmployeeId
 }) => {
     
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+
   const handleToggle = (id: string) => {
     onSetActiveEmployeeId(activeEmployeeId === id ? null : id);
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); 
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+        setDraggedIndex(null);
+        return;
+    }
+    
+    const reorderedEmployees = [...employees];
+    const [draggedItem] = reorderedEmployees.splice(draggedIndex, 1);
+    reorderedEmployees.splice(targetIndex, 0, draggedItem);
+    
+    onReorderEmployees(reorderedEmployees);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   return (
     <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
       <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">إعدادات الموظفين</h2>
       <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-        أدخل تفاصيل كل موظف. سيستخدم الذكاء الاصطناعي هذه المعلومات لإنشاء جدول مخصص. (الحد الأدنى 3، الحد الأقصى 10)
+        أدخل تفاصيل كل موظف. يمكنك سحب وإفلات الموظفين لتغيير ترتيبهم. (الحد الأدنى 3، الحد الأقصى 10)
       </p>
       <div className="space-y-4">
         {employees.map((employee, index) => {
           const isActive = activeEmployeeId === employee.id;
+          const isDragging = draggedIndex === index;
           return (
-            <div key={employee.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-              <button
-                onClick={() => handleToggle(employee.id)}
-                disabled={isLoading}
+            <div 
+                key={employee.id} 
+                className={`bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden transition-all duration-200 ${isDragging ? 'opacity-50 ring-2 ring-indigo-500' : 'opacity-100'}`}
+                draggable={!isLoading}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+            >
+              <div
                 className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:bg-indigo-50 dark:focus:bg-gray-700 transition-colors"
-                aria-expanded={isActive}
-                aria-controls={`employee-details-${employee.id}`}
               >
                 <div className="flex items-center">
-                    <h3 className="font-bold text-lg text-indigo-600 dark:text-indigo-400">
-                      {employee.firstName} {employee.lastName}
-                    </h3>
-                    <span className="mx-2 text-gray-400 dark:text-gray-500">-</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{employee.role}</span>
+                    <div 
+                        className={`mr-3 p-1 ${!isLoading ? 'cursor-grab' : 'cursor-not-allowed'} text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300`}
+                        aria-label="Drag to reorder"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </div>
+                    <button onClick={() => handleToggle(employee.id)} disabled={isLoading} className="focus:outline-none flex-grow text-right">
+                        <h3 className="font-bold text-lg text-indigo-600 dark:text-indigo-400">
+                        {employee.firstName} {employee.lastName}
+                        </h3>
+                        <span className="text-sm text-gray-600 dark:text-gray-300">{employee.role}</span>
+                    </button>
                 </div>
                 <div className="flex items-center">
                     <button
                         onClick={(e) => { e.stopPropagation(); onRemoveEmployee(employee.id); }}
                         disabled={isLoading || employees.length <= 3}
-                        className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors mr-4"
+                        className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors mr-2"
                         aria-label={`حذف الموظف ${employee.firstName} ${employee.lastName}`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
                         </svg>
                     </button>
-                    <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-6 w-6 text-gray-500 dark:text-gray-400 transform transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`} 
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <button
+                        onClick={() => handleToggle(employee.id)}
+                        disabled={isLoading}
+                        className="p-1.5 focus:outline-none"
+                        aria-expanded={isActive}
+                        aria-controls={`employee-details-${employee.id}`}
+                    >
+                        <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className={`h-6 w-6 text-gray-500 dark:text-gray-400 transform transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`} 
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
                 </div>
-              </button>
+              </div>
 
               <div 
                 id={`employee-details-${employee.id}`}

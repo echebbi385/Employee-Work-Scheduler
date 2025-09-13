@@ -165,6 +165,10 @@ const App: React.FC = () => {
         setActiveEmployeeId(null);
     }
   };
+
+  const handleReorderEmployees = (reorderedEmployees: Employee[]) => {
+    setEmployees(reorderedEmployees);
+  };
   
   const handleTimeChange = (key: keyof ShiftTimes, value: string) => {
     const newShiftTimes = { ...shiftTimes, [key]: value };
@@ -234,6 +238,32 @@ const App: React.FC = () => {
       setScheduleData(newScheduleData);
   };
 
+  const handleManualHoursChange = (employeeIndex: number, day: string, newHoursValue: number) => {
+    if (!scheduleData) return;
+
+    const newHours = Math.max(0, newHoursValue);
+
+    const newScheduleData: ScheduleData = JSON.parse(JSON.stringify(scheduleData));
+    const employeeToUpdate = newScheduleData.employees[employeeIndex];
+    if (!employeeToUpdate) return;
+    
+    const otherDaysHours = Object.keys(employeeToUpdate.schedule).reduce((acc, currentDay) => {
+        if (currentDay !== day) {
+            return acc + employeeToUpdate.schedule[currentDay as keyof typeof employeeToUpdate.schedule].hours;
+        }
+        return acc;
+    }, 0);
+    
+    const cappedNewHours = Math.min(newHours, 40 - otherDaysHours);
+
+    employeeToUpdate.schedule[day as keyof typeof employeeToUpdate.schedule].hours = cappedNewHours;
+
+    const totalHours = Object.values(employeeToUpdate.schedule).reduce((acc, daySchedule) => acc + daySchedule.hours, 0);
+    employeeToUpdate.totalHours = Math.round(totalHours * 100) / 100;
+      
+    setScheduleData(newScheduleData);
+  };
+
   const handleToggleEdit = () => setIsEditing(true);
 
   const handleSaveChanges = () => {
@@ -247,6 +277,67 @@ const App: React.FC = () => {
   };
   
   const handleTogglePreview = () => setIsPreviewing(prev => !prev);
+
+  const handleExportData = () => {
+    if (!scheduleData) {
+      alert('لا يوجد جدول لتصديره. يرجى إنشاء جدول أولاً.');
+      return;
+    }
+    const dataToExport = {
+      scheduleData,
+      originalScheduleData,
+      employees,
+      shiftTimes,
+      exportSettings
+    };
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `schedule_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const text = e.target?.result;
+            if (typeof text !== 'string') throw new Error('فشل في قراءة الملف.');
+            
+            const importedData = JSON.parse(text);
+
+            if (!importedData.scheduleData || !importedData.employees || !importedData.shiftTimes || !importedData.exportSettings) {
+                throw new Error('ملف JSON غير صالح أو لا يحتوي على البيانات المطلوبة.');
+            }
+            
+            setScheduleData(importedData.scheduleData);
+            setOriginalScheduleData(importedData.originalScheduleData || JSON.parse(JSON.stringify(importedData.scheduleData)));
+            setEmployees(importedData.employees);
+            setShiftTimes(importedData.shiftTimes);
+            setExportSettings(importedData.exportSettings);
+            
+            setError(null);
+            setIsEditing(false);
+            alert('تم استيراد البيانات بنجاح!');
+
+        } catch (err) {
+            console.error("Error importing data:", err);
+            const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع أثناء استيراد الملف.';
+            setError(`فشل استيراد البيانات: ${message}`);
+        } finally {
+            event.target.value = ''; // Reset file input
+        }
+    };
+    reader.onerror = () => {
+        setError('حدث خطأ أثناء قراءة الملف.');
+    };
+    reader.readAsText(file);
+  };
 
 
   return (
@@ -271,6 +362,7 @@ const App: React.FC = () => {
               onEmployeeChange={handleEmployeeChange}
               onAddEmployee={handleAddEmployee}
               onRemoveEmployee={handleRemoveEmployee}
+              onReorderEmployees={handleReorderEmployees}
               isLoading={isLoading}
               activeEmployeeId={activeEmployeeId}
               onSetActiveEmployeeId={setActiveEmployeeId}
@@ -302,6 +394,8 @@ const App: React.FC = () => {
                           onExportStart={handleExportStart}
                           onExportEnd={handleExportEnd}
                           onTogglePreview={handleTogglePreview}
+                          onExportData={handleExportData}
+                          onImportData={handleImportData}
                           disabled={isEditing}
                         />
                         <EditControls
@@ -319,6 +413,7 @@ const App: React.FC = () => {
                     exportSettings={exportSettings}
                     isEditing={isEditing}
                     onScheduleChange={handleScheduleChange}
+                    onManualHoursChange={handleManualHoursChange}
                 />
               </>
             ) : (

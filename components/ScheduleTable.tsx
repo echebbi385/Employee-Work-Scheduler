@@ -10,6 +10,7 @@ interface ScheduleTableProps {
   exportSettings: ExportSettings;
   isEditing: boolean;
   onScheduleChange: (employeeIndex: number, day: string, newShiftKey: string) => void;
+  onManualHoursChange: (employeeIndex: number, day: string, newHours: number) => void;
 }
 
 const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -29,7 +30,8 @@ const ShiftCell: React.FC<{
     daySchedule: DaySchedule;
     isEditing: boolean;
     onScheduleChange: (employeeIndex: number, day: string, newShiftKey: string) => void;
-}> = ({ employeeIndex, day, daySchedule, isEditing, onScheduleChange }) => {
+    onManualHoursChange: (employeeIndex: number, day: string, newHours: number) => void;
+}> = ({ employeeIndex, day, daySchedule, isEditing, onScheduleChange, onManualHoursChange }) => {
 
     if (!isEditing) {
         return (
@@ -64,19 +66,38 @@ const ShiftCell: React.FC<{
     );
 
     return (
-        <select
-            value={currentValue}
-            onChange={(e) => onScheduleChange(employeeIndex, day, e.target.value)}
-            className="w-full p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-gray-200"
-            aria-label={`Shift for ${day}`}
-        >
-            {options}
-        </select>
+        <div className="space-y-2">
+            <select
+                value={currentValue}
+                onChange={(e) => onScheduleChange(employeeIndex, day, e.target.value)}
+                className="w-full p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-gray-200"
+                aria-label={`Shift for ${day}`}
+            >
+                {options}
+            </select>
+            {daySchedule.status === 'Work' && (
+                <div className="relative">
+                    <input
+                        type="number"
+                        value={daySchedule.hours}
+                        onChange={(e) => onManualHoursChange(employeeIndex, day, parseFloat(e.target.value) || 0)}
+                        className="w-full p-2 pl-12 text-center bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        min="0"
+                        max="24"
+                        step="0.25"
+                        aria-label={`Hours for ${day}`}
+                    />
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400 pointer-events-none">
+                        ساعات
+                    </span>
+                </div>
+            )}
+        </div>
     );
 };
 
 
-const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, employees, exportSettings, isEditing, onScheduleChange }) => {
+const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, employees, exportSettings, isEditing, onScheduleChange, onManualHoursChange }) => {
   const { fontSize } = exportSettings;
 
   const sizeClasses = {
@@ -130,6 +151,7 @@ const ScheduleTable: React.FC<ScheduleTableProps> = ({ data, employees, exportSe
                                                 daySchedule={daySchedule}
                                                 isEditing={isEditing}
                                                 onScheduleChange={onScheduleChange}
+                                                onManualHoursChange={onManualHoursChange}
                                             />
                                         </td>
                                     );
