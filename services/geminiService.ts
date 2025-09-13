@@ -1,11 +1,6 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ScheduleData, ShiftTimes, Employee } from '../types';
 import { calculateHours } from './scheduleUtils';
-
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable is not set.");
-}
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -147,6 +142,10 @@ Generate a complete and valid schedule that meets all of these requirements.
 
 
 export const generateSchedule = async (employees: Employee[], shiftTimes: ShiftTimes): Promise<ScheduleData> => {
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable is not set.");
+  }
+  
   if (employees.length < 3 || employees.length > 10) {
     throw new Error("Please provide between 3 and 10 employees.");
   }
