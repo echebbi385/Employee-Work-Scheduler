@@ -326,6 +326,12 @@ const App: React.FC = () => {
             )}
           </div>
         </main>
+        
+        <footer className="text-center py-4 printable-hidden">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+                License to mohamed dridi
+            </p>
+        </footer>
       </div>
       {isPreviewing && scheduleData && (
         <PrintPreview 
