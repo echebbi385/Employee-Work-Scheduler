@@ -1,0 +1,5 @@
+{
+  "name": "Employee Work Scheduler",
+  "description": "An application to generate a weekly work schedule for 6 employees with different hourly requirements and constraints, ensuring fair distribution and adequate staffing.",
+  "requestFramePermissions": []
+}
